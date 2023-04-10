@@ -17,6 +17,7 @@ public class TileSeederVoronoi : MonoBehaviour
 
     private Vector3Int cellPosition;
 
+    // All this script does is store info and position the seed appropriately on the Grid for TileManager to use later.
     void Start()
     {
         tilemap = GameObject.Find("Land").GetComponent<Tilemap>();

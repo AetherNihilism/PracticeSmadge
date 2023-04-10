@@ -9,14 +9,19 @@ public class EventManager : MonoBehaviour
     public GameObject TileCrafter;
 
     private float Rotation = 0f;
-    // Start is called before the first frame update
+
     void Start()
     {
         //    InvokeRepeating("WorldCreation", 2.0f, 900.0f);
         Invoke("Starter", 5.0f);
+        InvokeRepeating("ContiniousCreation", 8.0f, 3.0f);
     }
 
-    // Update is called once per frame
+    void ContiniousCreation()
+    {
+        TileManager.instance.WorldBuildTest(PlayerLocation);
+    }
+
     void WorldCreation()
     {
         Rotation = Mathf.Atan2(1, 1);

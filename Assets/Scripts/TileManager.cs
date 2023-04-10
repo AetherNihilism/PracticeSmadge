@@ -37,53 +37,94 @@ public class TileManager : MonoBehaviour
 
     public Dictionary<string, Dictionary<string, List<TileBase>>> WorldGenLookup = new Dictionary<string, Dictionary<string, List<TileBase>>>();
 
-    public void WorldStart(GameObject SeedObject, Transform PlayerLocation, float Rotation)
+    // Event Manager starts us off with WorldStart after 5 seconds.
+    public void WorldStart(GameObject SeedObject, Transform PlayerLocation, float Rotation) // SeedObject is just the prefab, the other two are self explanatory. Rotation is depreciated, too lazy to strip it out atm
     {
+        // To kick things off, we generate our three dictionaries for our three tilesets. All variances exist only in the Moisture integer right now, for simplicity.
         GenerateDictionary(GrassTileList, GrassTileCollidables, 3, 3, 0);
         GenerateDictionary(SnowTileList, SnowTileCollidables, 2, 3, 0);
         GenerateDictionary(DirtTileList, DirtTileCollidables, 4, 3, 0);
+
+        // Define our seed object that we are gonna toss around. This first one is defined manually in all ways.
         GameObject seed = Instantiate(SeedObject, PlayerLocation.position, Quaternion.AngleAxis(Rotation, Vector3.forward));
         seed.GetComponent<TileSeederVoronoi>().TileList = WorldGenLookup["330"]["GroundTiles"];
         seed.GetComponent<TileSeederVoronoi>().TileCollidables = WorldGenLookup["330"]["CollidableTiles"];
         seed.GetComponent<TileSeederVoronoi>().Moisture = 3;
         seed.GetComponent<TileSeederVoronoi>().Heat = 3;
         seed.GetComponent<TileSeederVoronoi>().Danger = 0;
+
+        // We Manually add this seed to our Active Seeds list. Active seeds are seeds that in theory can be called upon to generate more surrounding seeds used in worldgen.
+
         ActiveSeeds.Add(seed);
-        Invoke("SowSeedsTest", 2.0f);
+        Invoke("SowSeedsTest", 2.0f); // Special edition of sowseeds used for initial worldgen
+    }
+
+    public void WorldBuildTest(Transform PlayerLocation)
+    {
+        Vector3 PlayerLoc = PlayerLocation.position;
+        GameObject TargetSeed = null;
+        TargetSeed = FindNearestActiveSeed(ActiveSeeds, PlayerLoc);
+
+        // Generate three seeds...
+        for (int i = 0; i < 3; i++)
+        {
+            int[] QuickList = { 2, 3, 4 };
+            int Variance = QuickList[Random.Range(0, QuickList.Length)];
+            var shrinky = ActiveSeeds[0].GetComponent<TileSeederVoronoi>();
+
+            SowSeeds(TargetSeed, 2f, Variance, 3, 0);
+        }
+        WorldConstructor(TargetSeed.transform.position, TargetSeed);
+
+        
     }
 
     void SowSeedsTest()
     {
-        int[] QuickList = { -1, 1 };
-        int Variance = QuickList[Random.Range(0, QuickList.Length)];
-        var shrinky = ActiveSeeds[0].GetComponent<TileSeederVoronoi>();
-        SowSeeds(ActiveSeeds[0], 1.5f, 4, shrinky.Moisture+Variance, shrinky.Heat, shrinky.Danger);
-        WorldConstructor(ActiveSeeds[0].transform.position, ActiveSeeds);
-     //   DormantSeeds.Add(ActiveSeeds[0]);
-    //    ActiveSeeds.Remove(ActiveSeeds[0]);
-    }
-
-    public void SowSeeds(GameObject TargetSeed, float seedrange, int seedamount, int Heat, int Moisture, int Danger)
-    {
-        for (int i = 0; i < seedamount; i++)
+        for (int i = 0; i < 6; i++)
         {
-            float angle = Random.Range(22.5f, 67.5f) + (i * 90);
-            float x = TargetSeed.transform.position.x + (seedrange * Mathf.Cos(angle / (180f / Mathf.PI)));
-            float y = TargetSeed.transform.position.y + (seedrange * Mathf.Sin(angle / (180f / Mathf.PI)));
-            Vector3 SeedLocation = new Vector3(x, y, 0);
-            GameObject seed = Instantiate(Seedoid, SeedLocation, Quaternion.AngleAxis(0, Vector3.forward));
-            seed.GetComponent<TileSeederVoronoi>().TileList = WorldGenLookup[Heat.ToString()+Moisture.ToString()+Danger.ToString()]["GroundTiles"];
-            seed.GetComponent<TileSeederVoronoi>().TileCollidables = WorldGenLookup[Heat.ToString() + Moisture.ToString() + Danger.ToString()]["CollidableTiles"];
-            seed.GetComponent<TileSeederVoronoi>().Heat = Heat;
-            seed.GetComponent<TileSeederVoronoi>().Moisture = Moisture;
-            seed.GetComponent<TileSeederVoronoi>().Danger = Danger;
-            ActiveSeeds.Add(seed);
+            int[] QuickList = { 2, 3, 4 }; // Using a simple array to randomly assign a Moisture value to any generated seeds.
+            int Variance = QuickList[Random.Range(0, QuickList.Length)];
+            var shrinky = ActiveSeeds[0].GetComponent<TileSeederVoronoi>(); // just used to shorten this long block of text, for sowseedstest we manually tell it that it is the first seed in the active seeds list. the only one in the list.
+
+            SowSeeds(ActiveSeeds[0], 1.5f, Variance, shrinky.Heat, shrinky.Danger); //Function that creates more seeds using the target seed. in this case it is manually defined as our only seed in the world
         }
+
+        WorldConstructor(ActiveSeeds[0].transform.position, ActiveSeeds[0]); //Function that paints a block of tiles around the target seed.
     }
 
-    void WorldConstructor(Vector3 OriginPoint, List<GameObject> ActiveSeeders)
+    public void SowSeeds(GameObject TargetSeed, float seedrange, int Heat, int Moisture, int Danger)
+    {
+        float distance = Mathf.Infinity;
+        GameObject Comparitor = null;
+        Vector3 SeedLocation = new Vector3(0, 0, 0);
+
+        // Makes sure it is at least 3f units away from the nearest seed. Ensures each seed gets sufficient space to breathe. Something is messed up with this right now though
+            while (distance > 3f)
+            {
+                float angle = Random.Range(0f, 360f);
+                float x = TargetSeed.transform.position.x + (seedrange * Mathf.Cos(angle / (180f / Mathf.PI)));
+                float y = TargetSeed.transform.position.y + (seedrange * Mathf.Sin(angle / (180f / Mathf.PI)));
+                SeedLocation = new Vector3(x, y, 0);
+                Comparitor = FindNearestSeed(ActiveSeeds, DormantSeeds, SeedLocation);
+                distance = DistanceBetween(Comparitor.transform.position, SeedLocation); // Returns the distance between two objects.
+                Debug.Log(distance);
+            }
+
+        // Create a new seed at the decided location. Define all the components used in the script, the tilelist and tilecollidables are pulled from the dictionaries by combining their heat moisture and danger into a string.
+        GameObject seed = Instantiate(Seedoid, SeedLocation, Quaternion.AngleAxis(0, Vector3.forward));
+        seed.GetComponent<TileSeederVoronoi>().TileList = WorldGenLookup[Heat.ToString() + Moisture.ToString() + Danger.ToString()]["GroundTiles"];
+        seed.GetComponent<TileSeederVoronoi>().TileCollidables = WorldGenLookup[Heat.ToString() + Moisture.ToString() + Danger.ToString()]["CollidableTiles"];
+        seed.GetComponent<TileSeederVoronoi>().Heat = Heat;
+        seed.GetComponent<TileSeederVoronoi>().Moisture = Moisture;
+        seed.GetComponent<TileSeederVoronoi>().Danger = Danger;
+        ActiveSeeds.Add(seed); // Adds the new seed to active seeds.
+    }
+
+    void WorldConstructor(Vector3 OriginPoint, GameObject ActiveSeed)
     {
         Vector3 SubOrigin = new Vector3(OriginPoint.x, OriginPoint.y);
+        GameObject DataGetter;
         
         for (int i = -5; i < 6; i++)
         {
@@ -94,11 +135,68 @@ public class TileManager : MonoBehaviour
                 SubOrigin.y += j * 0.16f;
                 if (LandTileset.GetTile(WorldGrid.WorldToCell(SubOrigin)) == null)
                 {
-                    LandTileset.SetTile((WorldGrid.WorldToCell(SubOrigin)), ActiveSeeders[0].GetComponent<TileSeederVoronoi>().TileList[Random.Range(0, ActiveSeeders[0].GetComponent<TileSeederVoronoi>().TileList.Count)]); // Use the component attached to the object on the list which contains tilelist, then randomly grab a tile from the list
-                    Debug.Log(ActiveSeeders[0].GetComponent<TileSeederVoronoi>().TileList[Random.Range(0, ActiveSeeders[0].GetComponent<TileSeederVoronoi>().TileList.Count)]);
+                    DataGetter = FindNearestSeed(ActiveSeeds, DormantSeeds, SubOrigin); // DataGetter becomes the nearest seed, this seed dictates what tileset we can use
+                    LandTileset.SetTile((WorldGrid.WorldToCell(SubOrigin)), DataGetter.GetComponent<TileSeederVoronoi>().TileList[Random.Range(0, DataGetter.GetComponent<TileSeederVoronoi>().TileList.Count)]); // Use the component attached to the object on the list which contains tilelist, then randomly grab a tile from the list
                 }
             }
         }
+        // Remove the targetted seed from ActiveSeeds and onto DormantSeeds list. It will no longer be called on to WorldGen or Sow Seeds, but it can still be checked to pass data onto tiles from dormant seed list
+        ActiveSeeds.Remove(ActiveSeed);
+        DormantSeeds.Add(ActiveSeed);
+
+    }
+
+    GameObject FindNearestActiveSeed(List<GameObject> FirstList, Vector3 PositionChecker)
+    {
+        //   List<GameObject> SeedList = new List<GameObject>(); Not in use yet... need to find list of say... five nearest seeds with below
+        float SeedRange = Mathf.Infinity;
+        GameObject closest = null;
+        foreach (GameObject seed in FirstList)
+        {
+            Vector3 diff = seed.transform.position - PositionChecker;
+            float curDistance = diff.sqrMagnitude;
+            if (curDistance < SeedRange)
+            {
+                closest = seed;
+                SeedRange = curDistance;
+            }
+        }
+        return closest;
+    }
+
+    float DistanceBetween(Vector3 Obj1, Vector3 Obj2)
+    {
+        Vector3 diff = Obj1 - Obj2;
+        float Distance = diff.sqrMagnitude;
+        return Distance;
+    }
+
+    GameObject FindNearestSeed(List<GameObject> FirstList, List<GameObject> SecondList, Vector3 PositionChecker)
+    {
+     //   List<GameObject> SeedList = new List<GameObject>(); Not in use yet... need to find list of say... five nearest seeds with below
+        float SeedRange = Mathf.Infinity;
+        GameObject closest = null;
+        foreach(GameObject seed in FirstList)
+        {
+            Vector3 diff = seed.transform.position - PositionChecker;
+            float curDistance = diff.sqrMagnitude;
+            if (curDistance < SeedRange)
+            {
+                closest = seed;
+                SeedRange = curDistance;
+            }
+        }
+        foreach (GameObject seed in SecondList)
+        {
+            Vector3 diff = seed.transform.position - PositionChecker;
+            float curDistance = diff.sqrMagnitude;
+            if (curDistance < SeedRange)
+            {
+                closest = seed;
+                SeedRange = curDistance;
+            }
+        }
+        return closest;
     }
 
     void GenerateDictionary(List<TileBase> BaseTiles, List<TileBase> Collidables, int Heat, int Moisture, int Danger)
@@ -109,6 +207,7 @@ public class TileManager : MonoBehaviour
         WorldGenLookup.Add(Heat.ToString()+Moisture.ToString()+Danger.ToString(), TileDictionary);
     }
 
+    // old shit can be ignored. will probably get axed later.
     public (List<TileBase>, List<TileBase>) FindGrassNeighbor()
     {
         int CaseChooser = Random.Range(0, 2);
