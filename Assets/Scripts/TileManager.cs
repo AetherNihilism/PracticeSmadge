@@ -61,22 +61,24 @@ public class TileManager : MonoBehaviour
 
     public void WorldBuildTest(Transform PlayerLocation)
     {
-        Vector3 PlayerLoc = PlayerLocation.position;
-        GameObject TargetSeed = null;
-        TargetSeed = FindNearestActiveSeed(ActiveSeeds, PlayerLoc);
-
-        // Generate three seeds...
-        for (int i = 0; i < 3; i++)
+        for (int a = 0; a < 2; a++)
         {
-            int[] QuickList = { 2, 3, 4 };
-            int Variance = QuickList[Random.Range(0, QuickList.Length)];
-            var shrinky = ActiveSeeds[0].GetComponent<TileSeederVoronoi>();
+            Vector3 PlayerLoc = PlayerLocation.position;
+            GameObject TargetSeed = null;
+            TargetSeed = FindNearestActiveSeed(ActiveSeeds, PlayerLoc);
 
-            SowSeeds(TargetSeed, 2f, Variance, 3, 0);
+            // Generate three seeds...
+            for (int i = 0; i < 3; i++)
+            {
+                int[] QuickList = { 2, 3, 4 };
+                int Variance = QuickList[Random.Range(0, QuickList.Length)];
+                var shrinky = ActiveSeeds[0].GetComponent<TileSeederVoronoi>();
+
+                SowSeeds(TargetSeed, 2f, Variance, 3, 0);
+            }
+            WorldConstructor(TargetSeed.transform.position, TargetSeed);
         }
-        WorldConstructor(TargetSeed.transform.position, TargetSeed);
 
-        
     }
 
     void SowSeedsTest()
@@ -95,12 +97,13 @@ public class TileManager : MonoBehaviour
 
     public void SowSeeds(GameObject TargetSeed, float seedrange, int Heat, int Moisture, int Danger)
     {
-        float distance = Mathf.Infinity;
+        float distance = 0f;
         GameObject Comparitor = null;
         Vector3 SeedLocation = new Vector3(0, 0, 0);
+        int retries = 0;
 
-        // Makes sure it is at least 3f units away from the nearest seed. Ensures each seed gets sufficient space to breathe. Something is messed up with this right now though
-            while (distance > 3f)
+        // Makes sure it is at least 1.5f units away from the nearest seed. Ensures each seed gets sufficient space to breathe. If it takes more than 50 tries to do this, it ditches the entire thing and returns. The assumption is the seed is in a crowded area already.
+            while (distance < 1.5f)
             {
                 float angle = Random.Range(0f, 360f);
                 float x = TargetSeed.transform.position.x + (seedrange * Mathf.Cos(angle / (180f / Mathf.PI)));
@@ -108,7 +111,9 @@ public class TileManager : MonoBehaviour
                 SeedLocation = new Vector3(x, y, 0);
                 Comparitor = FindNearestSeed(ActiveSeeds, DormantSeeds, SeedLocation);
                 distance = DistanceBetween(Comparitor.transform.position, SeedLocation); // Returns the distance between two objects.
-                Debug.Log(distance);
+                retries++;
+                if (retries > 50)
+                return;
             }
 
         // Create a new seed at the decided location. Define all the components used in the script, the tilelist and tilecollidables are pulled from the dictionaries by combining their heat moisture and danger into a string.
@@ -126,9 +131,9 @@ public class TileManager : MonoBehaviour
         Vector3 SubOrigin = new Vector3(OriginPoint.x, OriginPoint.y);
         GameObject DataGetter;
         
-        for (int i = -5; i < 6; i++)
+        for (int i = -8; i < 9; i++)
         {
-            for (int j = -5; j < 6; j++)
+            for (int j = -8; j < 9; j++)
             {
                 SubOrigin = OriginPoint;
                 SubOrigin.x += i * 0.16f;

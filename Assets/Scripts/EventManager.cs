@@ -14,7 +14,7 @@ public class EventManager : MonoBehaviour
     {
         //    InvokeRepeating("WorldCreation", 2.0f, 900.0f);
         Invoke("Starter", 5.0f);
-        InvokeRepeating("ContiniousCreation", 8.0f, 3.0f);
+        InvokeRepeating("ContiniousCreation", 10.0f, 10.0f);
     }
 
     void ContiniousCreation()
