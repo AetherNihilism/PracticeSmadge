@@ -130,6 +130,7 @@ public class TileManager : MonoBehaviour
     {
         Vector3 SubOrigin = new Vector3(OriginPoint.x, OriginPoint.y);
         GameObject DataGetter;
+        float Objector;
         
         for (int i = -8; i < 9; i++)
         {
@@ -142,6 +143,11 @@ public class TileManager : MonoBehaviour
                 {
                     DataGetter = FindNearestSeed(ActiveSeeds, DormantSeeds, SubOrigin); // DataGetter becomes the nearest seed, this seed dictates what tileset we can use
                     LandTileset.SetTile((WorldGrid.WorldToCell(SubOrigin)), DataGetter.GetComponent<TileSeederVoronoi>().TileList[Random.Range(0, DataGetter.GetComponent<TileSeederVoronoi>().TileList.Count)]); // Use the component attached to the object on the list which contains tilelist, then randomly grab a tile from the list
+                    Objector = GenerateNoise(SubOrigin.x, SubOrigin.y);
+                    if (Objector > 0.35 && Objector < 0.355)
+                    {
+                        LandCollidables.SetTile((WorldGrid.WorldToCell(SubOrigin)), DataGetter.GetComponent<TileSeederVoronoi>().TileCollidables[Random.Range(0, DataGetter.GetComponent<TileSeederVoronoi>().TileCollidables.Count)]);
+                    }
                 }
             }
         }
@@ -149,6 +155,13 @@ public class TileManager : MonoBehaviour
         ActiveSeeds.Remove(ActiveSeed);
         DormantSeeds.Add(ActiveSeed);
 
+    }
+
+    float GenerateNoise(float coordX, float coordY)
+    {
+        float noiseMap = Mathf.PerlinNoise(coordX, coordY);
+
+        return noiseMap;
     }
 
     GameObject FindNearestActiveSeed(List<GameObject> FirstList, Vector3 PositionChecker)
